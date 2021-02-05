@@ -47,6 +47,7 @@ type Vulnerability struct {
 	Range    claircore.Range `json:"-"`
 }
 
+// AfterFind marshal range
 func (v *Vulnerability) AfterFind(scope *gorm.Scope) (err error) {
 	if len(v.RawRange) == 0 {
 		return
