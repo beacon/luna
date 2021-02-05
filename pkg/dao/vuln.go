@@ -35,11 +35,11 @@ type Vulnerability struct {
 
 	// the package information associated with the vulnerability. ideally these fields can be matched
 	// to packages discovered by libindex PackageScanner structs.
-	Package *VulPackage `gorm:"embedded;embeddedPrefix:package_"`
+	Package *VulPackage `gorm:"EMBEDDED;EMBEDDED_PREFIX:package_"`
 	// the distribution information associated with the vulnerability.
-	Dist *VulDist `gorm:"embedded;embeddedPrefix:dist_"`
+	Dist *VulDist `gorm:"EMBEDDED;EMBEDDED_PREFIX:dist_"`
 	// the repository information associated with the vulnerability
-	Repo *VulRepository `gorm:"embedded;embeddedPrefix:repo_"`
+	Repo *VulRepository `gorm:"EMBEDDED;EMBEDDED_PREFIX:repo_"`
 	// a string specifying the package version the fix was released in
 	FixedInVersion string `gorm:"fixed_in_version"`
 	// Range describes the range of versions that are vulnerable.
@@ -103,7 +103,7 @@ func VulnerabilityToClair(v *Vulnerability) *claircore.Vulnerability {
 // VulPackage represent related package_* fields in table vuln
 type VulPackage struct {
 	// the name of the package
-	Name string
+	Name string `gorm:"name"`
 	// the version of the package
 	Version string
 	// type of package. currently expectations are binary or source

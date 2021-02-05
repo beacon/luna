@@ -19,6 +19,7 @@ func Connect(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.LogMode(true)
 	return db, nil
 }
 

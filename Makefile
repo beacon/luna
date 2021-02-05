@@ -5,7 +5,7 @@ DATE ?= $(shell TZ='Asia/Shanghai' date '+%Y-%m-%d_%H:%M:%S')
 
 PKG=github.com/beacon/luna
 luna:
-	go build -ldflags=" \
+	go build -mod=vendor -ldflags=" \
 	-X $(PKG)/pkg/version.GitVersion=$(REF) \
 	-X $(PKG)/pkg/version.GitCommit=$(COMMIT) \
 	-X $(PKG)/pkg/version.GitTreeState=$(TREESTATE) \

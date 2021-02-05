@@ -57,10 +57,29 @@ imports/exports of vulnerability store, management of scanning tasks, etc.
 		},
 	}
 
-	exportCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DNS to connect to postgres")
+	exportCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DSN to connect to postgres")
 	exportCmd.PersistentFlags().StringVarP(&exportFrom, "from", "", "", "Export since time, leaving empty will export everything. Example: 2021-01-12")
 	exportCmd.PersistentFlags().StringVarP(&exportFileName, "out", "o", "", "Output filename for the export, better end with .gz")
 	cmd.AddCommand(exportCmd)
+
+	var importFileName string
+	importCmd := &cobra.Command{
+		Use:  "import",
+		Long: "Import offline update package from a file, and load it into new database. Migrations will be done automatically",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+			if importFileName == "" {
+				return errors.New("-i is required")
+			}
+			if dsn == "" {
+				return errors.New("--dsn is required")
+			}
+			return Import(ctx, importFileName, dsn)
+		},
+	}
+	importCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DSN for the database to be migrated")
+	importCmd.PersistentFlags().StringVarP(&importFileName, "in", "i", "", "Input update package")
+	cmd.AddCommand(importCmd)
 
 	return cmd
 }

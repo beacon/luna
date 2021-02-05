@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/quay/claircore"
@@ -30,6 +31,13 @@ type CommonEntry struct {
 	Updater     string
 	Fingerprint driver.Fingerprint
 	Date        time.Time
+}
+
+// DiskEntry to write to exported files
+type DiskEntry struct {
+	CommonEntry
+	Ref  uuid.UUID
+	Vuln *claircore.Vulnerability
 }
 
 // Export vulnerability updates
@@ -73,6 +81,7 @@ func Export(ctx context.Context, dsn string, from time.Time, fileName string) er
 	}
 	defer outFile.Close()
 	gz := gzip.NewWriter(outFile)
+	defer gz.Close()
 	encoder := json.NewEncoder(gz)
 	encoder.SetEscapeHTML(false)
 	var vulExportCnt int
@@ -83,15 +92,19 @@ func Export(ctx context.Context, dsn string, from time.Time, fileName string) er
 			return errors.Wrap(err, "failed to list vulnerabilities")
 		}
 		fmt.Println(op.Updater, op.Fingerprint, "Vulnerability count=", len(vulns))
-		entry := &Entry{
+		diskEntry := &DiskEntry{
 			CommonEntry: CommonEntry{
 				Updater:     op.Updater,
 				Fingerprint: op.Fingerprint,
 				Date:        op.Date,
 			},
-			Vuln: vulns,
+			Ref: op.Ref,
 		}
-		encoder.Encode(entry)
+		for _, vuln := range vulns {
+			diskEntry.Vuln = vuln
+			encoder.Encode(diskEntry)
+		}
+
 		vulExportCnt += len(vulns)
 		updaterPct := float64(i+1) / float64(len(ops)) * 100.0
 		vulPct := float64(vulExportCnt) / float64(vulCount) * 100.0
