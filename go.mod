@@ -3,6 +3,7 @@ module github.com/beacon/luna
 go 1.15
 
 require (
+	github.com/google/go-containerregistry v0.0.0-20191206185556-eb7c14b719c6
 	github.com/google/uuid v1.1.1
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/jinzhu/gorm v1.9.16

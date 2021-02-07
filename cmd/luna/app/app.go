@@ -81,5 +81,21 @@ imports/exports of vulnerability store, management of scanning tasks, etc.
 	importCmd.PersistentFlags().StringVarP(&importFileName, "in", "i", "", "Input update package")
 	cmd.AddCommand(importCmd)
 
+	inspectCmd := &cobra.Command{
+		Use:  "inspect",
+		Long: "Inspect image",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("Args:", args)
+			m, err := InspectLocal(context.Background(), args[0])
+			if err != nil {
+				return err
+			}
+			raw, _ := json.MarshalIndent(m, "", "  ")
+			fmt.Println(string(raw))
+			return nil
+		},
+	}
+	cmd.AddCommand(inspectCmd)
+
 	return cmd
 }
