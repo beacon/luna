@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/quay/claircore"
+	"github.com/quay/claircore/libindex"
 )
 
 // Scan an image
@@ -29,7 +30,23 @@ func Scan(ctx context.Context, imageRef string, remote bool) error {
 	return nil
 }
 
-func ScanLocal(ctx context.Context, imageRef string) error {
+// Scan local images
+func ScanLocal(ctx context.Context, imageRef, dsn string) error {
+	m, err := InspectLocal(ctx, imageRef)
+	if err != nil {
+		return err
+	}
+	idx, err := libindex.New(ctx, &libindex.Opts{
+		ConnString: dsn,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to setup libindex")
+	}
+	report, err := idx.Index(ctx, m)
+	if err != nil {
+		return errors.Wrap(err, "failed to make report")
+	}
+	fmt.Println(report)
 	return nil
 }
 
@@ -39,7 +56,7 @@ type Manifest struct {
 }
 
 // InspectLocal get image info from local
-func InspectLocal(ctx context.Context, r string) (*Manifest, error) {
+func InspectLocal(ctx context.Context, r string) (*claircore.Manifest, error) {
 	// TODO: this is simply for docker. For container-d or cri-o, ctr code should be checked
 	// k8s cri has been checked and has no features we need
 	d := new(net.Dialer)
@@ -75,13 +92,39 @@ func InspectLocal(ctx context.Context, r string) (*Manifest, error) {
 	if len(manifests) != 1 {
 		return nil, fmt.Errorf("unexpected manifest: length=%d", len(manifests))
 	}
-	return manifests[0], nil
+	// digest, size, err := v1.SHA256(bytes.NewReader(rawManifest))
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "failed to make manifest digest")
+	// }
+	m := &claircore.Manifest{
+		// Hash:   digest, TODO: hash not get
+		Layers: make([]*claircore.Layer, len(manifests[0].Layers)),
+	}
+	for i, l := range manifests[0].Layers {
+		p := strings.Split(l, ":")
+		if len(p) != 2 {
+			return nil, fmt.Errorf("invalid layer hash")
+		}
+		layer := &claircore.Layer{
+			// Hash: v1.Digest{
+			// 	Algorithm: p[0],
+			// 	Hex:       p[1], // TODO: make it from splitted
+			// },
+		}
+		// TODO: set local layer
+		layer.SetLocal("")
+		m.Layers[i] = layer
+	}
+
+	return m, nil
 }
 
 // untar uses a Reader that represents a tar to untar it on the fly to a target folder
 func untar(imageReader io.ReadCloser, target string) error {
 	tarReader := tar.NewReader(imageReader)
-
+	if err := os.MkdirAll(target, 0744); err != nil {
+		return errors.Wrap(err, "failed to create target dir")
+	}
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {

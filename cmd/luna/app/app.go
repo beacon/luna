@@ -86,7 +86,7 @@ imports/exports of vulnerability store, management of scanning tasks, etc.
 		Long: "Inspect image",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Args:", args)
-			m, err := InspectLocal(context.Background(), args[0])
+			m, err := Inspect(context.Background(), args[0])
 			if err != nil {
 				return err
 			}

@@ -11,7 +11,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/json-iterator/go v1.1.8
 	github.com/pkg/errors v0.9.1
-	github.com/quay/claircore v1.0.5
+	github.com/quay/claircore v0.3.0
 	github.com/quay/zlog v0.0.0-20210113185248-ce16eed1dcec
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cobra v1.1.1

@@ -7,7 +7,7 @@ IMG ?= $(REPO)/luna:$(REF)
 
 PKG=github.com/beacon/luna
 luna:
-	go mod vendor
+	#go mod vendor
 	go build -mod=vendor -ldflags=" \
 	-X $(PKG)/pkg/version.GitVersion=$(REF) \
 	-X $(PKG)/pkg/version.GitCommit=$(COMMIT) \
