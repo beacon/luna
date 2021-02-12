@@ -111,5 +111,7 @@ imports/exports of vulnerability store, management of scanning tasks, etc.
 	scanCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DSN for the database to be migrated")
 	cmd.AddCommand(scanCmd)
 
+	cmd.AddCommand(NewUpdateCommand())
+
 	return cmd
 }

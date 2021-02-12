@@ -32,7 +32,7 @@ func Scan(ctx context.Context, imageRef string, remote bool) error {
 	return nil
 }
 
-// Scan local images
+// ScanLocal scan a local image
 func ScanLocal(ctx context.Context, imageRef, dsn string) error {
 	m, err := InspectLocal(ctx, imageRef)
 	if err != nil {
