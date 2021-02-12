@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -25,12 +26,32 @@ import (
 
 	"github.com/quay/claircore"
 	"github.com/quay/claircore/libindex"
+	"github.com/quay/claircore/libvuln"
 )
 
 // Scan an image
 func Scan(ctx context.Context, imageRef string, remote bool) error {
 	return nil
 }
+
+const tabwriterTmpl = `
+{{- define "ok" -}}
+{{.Name}}	ok
+{{end}}
+{{- define "err" -}}
+{{.Name}}	error	{{.Err}}
+{{end}}
+{{- define "found" -}}
+{{with $r := .}}{{range $id, $v := .Report.PackageVulnerabilities}}{{range $d := $v -}}
+{{$r.Name}}	found	{{with index $r.Report.Packages $id}}{{.Name}}	{{.Version}}{{end}}
+	{{- with index $r.Report.Vulnerabilities $d}}	{{.Name}}
+	{{- with .FixedInVersion}}	(fixed: {{.}}){{end}}{{end}}
+{{end}}{{end}}{{end}}{{end}}
+{{- /* The following is the actual bit of the template that runs per item. */ -}}
+{{if .Err}}{{template "err" .}}
+{{- else if ne (len .Report.PackageVulnerabilities) 0}}{{template "found" .}}
+{{- else}}{{template "ok" .}}
+{{end}}`
 
 // ScanLocal scan a local image
 func ScanLocal(ctx context.Context, imageRef, dsn string) error {
@@ -40,6 +61,7 @@ func ScanLocal(ctx context.Context, imageRef, dsn string) error {
 	}
 	idx, err := libindex.New(ctx, &libindex.Opts{
 		ConnString: dsn,
+		Migrations: true,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to setup libindex")
@@ -48,7 +70,35 @@ func ScanLocal(ctx context.Context, imageRef, dsn string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to make report")
 	}
-	fmt.Println(report)
+	vul, err := libvuln.New(ctx, &libvuln.Opts{
+		ConnString: dsn,
+		Migrations: true,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to setup libvuln")
+	}
+	vulReport, err := vul.Scan(ctx, report)
+	if err != nil {
+		return errors.Wrap(err, "failed to scan vulnerabilities")
+	}
+	fmt.Println(vulReport)
+	scanResult := struct {
+		Name   string
+		Err    error
+		Report *claircore.VulnerabilityReport
+	}{
+		Name:   imageRef,
+		Err:    err,
+		Report: vulReport,
+	}
+	tmpl, err := template.New("vulnerability").Parse(tabwriterTmpl)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse template")
+	}
+
+	if err := tmpl.Execute(os.Stdout, &scanResult); err != nil {
+		return errors.Wrap(err, "failed to execute template")
+	}
 	return nil
 }
 
@@ -114,9 +164,7 @@ func InspectLocal(ctx context.Context, r string) (*claircore.Manifest, error) {
 		Layers: make([]tmpLayer, len(manifests[0].Layers)),
 	}
 	for i, l := range manifests[0].Layers {
-		localPath := path.Join(tmpDir, l)
 		tmpManifest.Layers[i].Hash = "sha256:" + strings.TrimSuffix(l, "/layer.tar")
-		tmpManifest.Layers[i].URI = "file:///" + localPath
 	}
 
 	var clairManifest claircore.Manifest
@@ -127,6 +175,10 @@ func InspectLocal(ctx context.Context, r string) (*claircore.Manifest, error) {
 	fmt.Println("DBG - Clair Manifest\n", buf.String())
 	if err := json.NewDecoder(&buf).Decode(&clairManifest); err != nil {
 		return nil, errors.Wrap(err, "failed to decode clair manifest")
+	}
+	for i, l := range manifests[0].Layers {
+		localPath := path.Join(tmpDir, l)
+		clairManifest.Layers[i].SetLocal(localPath)
 	}
 
 	return &clairManifest, nil
