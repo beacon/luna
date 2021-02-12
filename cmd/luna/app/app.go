@@ -97,5 +97,19 @@ imports/exports of vulnerability store, management of scanning tasks, etc.
 	}
 	cmd.AddCommand(inspectCmd)
 
+	scanCmd := &cobra.Command{
+		Use:  "scan",
+		Long: "Scan image",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if dsn == "" {
+				return errors.New("missing dsn argument")
+			}
+			err := ScanLocal(context.Background(), args[0], dsn)
+			return err
+		},
+	}
+	scanCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DSN for the database to be migrated")
+	cmd.AddCommand(scanCmd)
+
 	return cmd
 }

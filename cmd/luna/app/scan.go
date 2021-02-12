@@ -2,6 +2,7 @@ package app
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/uuid"
@@ -50,9 +52,11 @@ func ScanLocal(ctx context.Context, imageRef, dsn string) error {
 	return nil
 }
 
-// Manifest in custom format
+// Manifest in docker json
 type Manifest struct {
-	Layers []string
+	Config   string
+	RepoTags []string
+	Layers   []string
 }
 
 // InspectLocal get image info from local
@@ -92,31 +96,40 @@ func InspectLocal(ctx context.Context, r string) (*claircore.Manifest, error) {
 	if len(manifests) != 1 {
 		return nil, fmt.Errorf("unexpected manifest: length=%d", len(manifests))
 	}
-	// digest, size, err := v1.SHA256(bytes.NewReader(rawManifest))
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "failed to make manifest digest")
-	// }
-	m := &claircore.Manifest{
-		// Hash:   digest, TODO: hash not get
-		Layers: make([]*claircore.Layer, len(manifests[0].Layers)),
+	digest, size, err := v1.SHA256(bytes.NewReader(rawManifest))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make manifest digest")
+	}
+	type tmpLayer struct {
+		Hash string `json:"hash"`
+		URI  string `json:"uri"`
+	}
+	tmpManifest := struct {
+		Hash   v1.Hash    `json:"hash"`
+		Size   int64      `json:"size"`
+		Layers []tmpLayer `json:"layers"`
+	}{
+		Hash:   digest,
+		Size:   size,
+		Layers: make([]tmpLayer, len(manifests[0].Layers)),
 	}
 	for i, l := range manifests[0].Layers {
-		p := strings.Split(l, ":")
-		if len(p) != 2 {
-			return nil, fmt.Errorf("invalid layer hash")
-		}
-		layer := &claircore.Layer{
-			// Hash: v1.Digest{
-			// 	Algorithm: p[0],
-			// 	Hex:       p[1], // TODO: make it from splitted
-			// },
-		}
-		// TODO: set local layer
-		layer.SetLocal("")
-		m.Layers[i] = layer
+		localPath := path.Join(tmpDir, l)
+		tmpManifest.Layers[i].Hash = "sha256:" + strings.TrimSuffix(l, "/layer.tar")
+		tmpManifest.Layers[i].URI = "file:///" + localPath
 	}
 
-	return m, nil
+	var clairManifest claircore.Manifest
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(&tmpManifest); err != nil {
+		return nil, errors.Wrap(err, "failed to encode temp manifest")
+	}
+	fmt.Println("DBG - Clair Manifest\n", buf.String())
+	if err := json.NewDecoder(&buf).Decode(&clairManifest); err != nil {
+		return nil, errors.Wrap(err, "failed to decode clair manifest")
+	}
+
+	return &clairManifest, nil
 }
 
 // untar uses a Reader that represents a tar to untar it on the fly to a target folder
