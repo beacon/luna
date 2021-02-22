@@ -22,7 +22,7 @@ docker run --name pg -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e 
 2. Build luna
 
 ```bash
-go mod vendor && make luna
+make luna
 ```
 
 3. Run online updates
