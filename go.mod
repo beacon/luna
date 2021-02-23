@@ -15,5 +15,7 @@ require (
 	github.com/quay/zlog v0.0.0-20210113185248-ce16eed1dcec
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cobra v1.1.1
+	github.com/tadasv/go-dpkg v0.0.0-20160704224136-c2cf9188b763
+	go.opentelemetry.io/otel v0.15.0
 	k8s.io/klog v1.0.0
 )

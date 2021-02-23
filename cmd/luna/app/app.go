@@ -112,6 +112,7 @@ imports/exports of vulnerability store, management of scanning tasks, etc.
 	cmd.AddCommand(scanCmd)
 
 	cmd.AddCommand(NewUpdateCommand())
+	cmd.AddCommand(NewInfraScanCommand())
 
 	return cmd
 }
