@@ -13,6 +13,7 @@ import (
 )
 
 func NewImportCommand() *cobra.Command {
+	// TODO: move it into a single package
 	var importFileName string
 	var dsn string
 	importCmd := &cobra.Command{
