@@ -9,7 +9,30 @@ import (
 	"github.com/quay/claircore/libvuln"
 	"github.com/quay/zlog"
 	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
 )
+
+func NewImportCommand() *cobra.Command {
+	var importFileName string
+	var dsn string
+	importCmd := &cobra.Command{
+		Use:  "import",
+		Long: "Import offline update package from a file, and load it into new database. Migrations will be done automatically",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+			if importFileName == "" {
+				return errors.New("-i is required")
+			}
+			if dsn == "" {
+				return errors.New("--dsn is required")
+			}
+			return Import(ctx, importFileName, dsn)
+		},
+	}
+	importCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DSN for the database to be migrated")
+	importCmd.PersistentFlags().StringVarP(&importFileName, "in", "i", "", "Input update package")
+	return importCmd
+}
 
 // Import import an update package and load it into specified database
 func Import(ctx context.Context, srcFile string, dsn string) error {

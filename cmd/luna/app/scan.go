@@ -23,11 +23,49 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 
 	"github.com/quay/claircore"
 	"github.com/quay/claircore/libindex"
 	"github.com/quay/claircore/libvuln"
 )
+
+// NewInspectCommand inspect
+func NewInspectCommand() *cobra.Command {
+	inspectCmd := &cobra.Command{
+		Use:  "inspect",
+		Long: "Inspect image",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("Args:", args)
+			m, err := Inspect(context.Background(), args[0])
+			if err != nil {
+				return err
+			}
+			raw, _ := json.MarshalIndent(m, "", "  ")
+			fmt.Println(string(raw))
+			return nil
+		},
+	}
+	return inspectCmd
+}
+
+// NewScanCommand scan
+func NewScanCommand() *cobra.Command {
+	var dsn string
+	scanCmd := &cobra.Command{
+		Use:  "scan",
+		Long: "Scan image",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if dsn == "" {
+				return errors.New("missing dsn argument")
+			}
+			err := ScanLocal(context.Background(), args[0], dsn)
+			return err
+		},
+	}
+	scanCmd.PersistentFlags().StringVarP(&dsn, "dsn", "", "", "DSN for the database to be migrated")
+	return scanCmd
+}
 
 // Scan an image
 func Scan(ctx context.Context, imageRef string, remote bool) error {

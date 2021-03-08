@@ -102,43 +102,8 @@ func (ps *Scanner) Scan(ctx context.Context) ([]*claircore.Package, error) {
 			pkgs = append(pkgs, p)
 		}
 
-		infoDir := filepath.Join(p, "info")
-		const suffix = ".md5sums"
-		infos, err := ioutil.ReadDir(infoDir)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to read dir:"+infoDir)
-		}
-		for _, info := range infos {
-			if !strings.HasSuffix(info.Name(), suffix) {
-				continue
-			}
-			n := filepath.Base(info.Name())
-			n = strings.TrimSuffix(n, suffix)
-			if i := strings.IndexRune(n, ':'); i != -1 {
-				n = n[:i]
-			}
-			p, ok := found[n]
-			if !ok {
-				zlog.Debug(ctx).
-					Str("package", n).
-					Msg("extra metadata found, ignoring")
-				continue
-			}
-			sumFileName := path.Join(infoDir, info.Name())
-			sumFile, err := os.Open(sumFileName)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to open sum file:"+sumFileName)
-			}
-			hash := md5.New()
-			if _, err := io.Copy(hash, sumFile); err != nil {
-				zlog.Warn(ctx).
-					Err(err).
-					Str("package", n).
-					Msg("unable to read package metadata")
-				continue
-			}
-			sumFile.Close()
-			p.RepositoryHint = hex.EncodeToString(hash.Sum(nil))
+		if err := addFileHash(ctx, found, filepath.Join(p, "info")); err != nil {
+			return nil, err
 		}
 		zlog.Debug(ctx).
 			Int("count", len(found)).
@@ -146,4 +111,45 @@ func (ps *Scanner) Scan(ctx context.Context) ([]*claircore.Package, error) {
 	}
 
 	return pkgs, nil
+}
+
+func addFileHash(ctx context.Context, metamap map[string]*claircore.Package, infoDir string) error {
+	infos, err := ioutil.ReadDir(infoDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to read dir:"+infoDir)
+	}
+	const suffix = ".md5sums"
+	for _, info := range infos {
+		if !strings.HasSuffix(info.Name(), suffix) {
+			continue
+		}
+		n := filepath.Base(info.Name())
+		n = strings.TrimSuffix(n, suffix)
+		if i := strings.IndexRune(n, ':'); i != -1 {
+			n = n[:i]
+		}
+		p, ok := metamap[n]
+		if !ok {
+			zlog.Debug(ctx).
+				Str("package", n).
+				Msg("extra metadata found, ignoring")
+			continue
+		}
+		sumFileName := path.Join(infoDir, info.Name())
+		sumFile, err := os.Open(sumFileName)
+		if err != nil {
+			return errors.Wrap(err, "failed to open sum file:"+sumFileName)
+		}
+		hash := md5.New()
+		if _, err := io.Copy(hash, sumFile); err != nil {
+			zlog.Warn(ctx).
+				Err(err).
+				Str("package", n).
+				Msg("unable to read package metadata")
+			continue
+		}
+		sumFile.Close()
+		p.RepositoryHint = hex.EncodeToString(hash.Sum(nil))
+	}
+	return nil
 }
